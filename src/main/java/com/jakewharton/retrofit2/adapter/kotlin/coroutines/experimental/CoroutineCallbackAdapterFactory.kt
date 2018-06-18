@@ -11,9 +11,9 @@ import java.lang.reflect.Type
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.intrinsics.COROUTINE_SUSPENDED
 
-internal fun wrapException(e: Throwable, snapshot: Throwable) : Throwable {
+internal fun Throwable.wrap(e: Throwable) : Throwable {
   val exWrapper = RuntimeException(e)
-  exWrapper.stackTrace = snapshot.stackTrace
+  exWrapper.stackTrace = this.stackTrace
   return exWrapper
 }
 
@@ -64,12 +64,12 @@ class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Fa
           if (response.isSuccessful) {
             continuation.resume(response.body()!!)
           } else {
-            continuation.resumeWithException(wrapException(HttpException(response), snapshot))
+            continuation.resumeWithException(snapshot.wrap(HttpException(response)))
           }
         }
 
         override fun onFailure(call: Call<T>, t: Throwable) {
-          continuation.resumeWithException(wrapException(t, snapshot))
+          continuation.resumeWithException(snapshot.wrap(t))
         }
       })
       return COROUTINE_SUSPENDED
@@ -90,7 +90,7 @@ class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Fa
         }
 
         override fun onFailure(call: Call<T>, t: Throwable) {
-          continuation.resumeWithException(wrapException(t, snapshot))
+          continuation.resumeWithException(snapshot.wrap(t))
         }
       })
       return COROUTINE_SUSPENDED
