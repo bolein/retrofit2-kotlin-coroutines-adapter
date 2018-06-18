@@ -11,6 +11,12 @@ import java.lang.reflect.Type
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.intrinsics.COROUTINE_SUSPENDED
 
+internal fun wrapException(e: Throwable, snapshot: Throwable) : Throwable {
+  val exWrapper = RuntimeException(e)
+  exWrapper.stackTrace = snapshot.stackTrace
+  return exWrapper
+}
+
 class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Factory() {
   companion object {
     @JvmStatic @JvmName("create")
@@ -52,17 +58,18 @@ class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Fa
     override fun responseType() = responseType
 
     override fun adapt(call: Call<T>, continuation: Continuation<T>): Any? {
+      val snapshot = Exception() // used to keep the stack trace
       call.enqueue(object : Callback<T> {
         override fun onResponse(call: Call<T>, response: Response<T>) {
           if (response.isSuccessful) {
             continuation.resume(response.body()!!)
           } else {
-            continuation.resumeWithException(HttpException(response))
+            continuation.resumeWithException(wrapException(HttpException(response), snapshot))
           }
         }
 
         override fun onFailure(call: Call<T>, t: Throwable) {
-          continuation.resumeWithException(t)
+          continuation.resumeWithException(wrapException(t, snapshot))
         }
       })
       return COROUTINE_SUSPENDED
@@ -76,13 +83,14 @@ class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Fa
     override fun responseType() = responseType
 
     override fun adapt(call: Call<T>, continuation: Continuation<Response<T>>): Any? {
+      val snapshot = Exception() // used to keep the stack trace
       call.enqueue(object : Callback<T> {
         override fun onResponse(call: Call<T>, response: Response<T>) {
           continuation.resume(response)
         }
 
         override fun onFailure(call: Call<T>, t: Throwable) {
-          continuation.resumeWithException(t)
+          continuation.resumeWithException(wrapException(t, snapshot))
         }
       })
       return COROUTINE_SUSPENDED

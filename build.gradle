@@ -20,7 +20,7 @@ repositories {
 }
 
 dependencies {
-  implementation 'com.github.square.retrofit:retrofit:363b05be9f'
+  api 'com.github.square.retrofit:retrofit:363b05be9f'
   implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.2.41'
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
 
