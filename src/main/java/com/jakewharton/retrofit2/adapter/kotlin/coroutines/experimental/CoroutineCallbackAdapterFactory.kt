@@ -8,20 +8,20 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
+import java.util.concurrent.Executor
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.intrinsics.COROUTINE_SUSPENDED
 
-internal fun Throwable.wrap(e: Throwable) : Throwable {
+
+internal fun Throwable.wrap(e: Throwable): Throwable {
   val exWrapper = RuntimeException(e)
   exWrapper.stackTrace = this.stackTrace
   return exWrapper
 }
 
-class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Factory() {
-  companion object {
-    @JvmStatic @JvmName("create")
-    operator fun invoke() = CoroutineCallbackAdapterFactory()
-  }
+class CoroutineCallbackAdapterFactory(
+        private val executor: Executor
+) : CallbackAdapter.Factory() {
 
   override fun get(
       parameterType: Type,
@@ -45,21 +45,22 @@ class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Fa
       if (responseType !is ParameterizedType) {
         throw IllegalStateException("Response must be parameterized as Response<Foo> or Response<out Foo>")
       }
-      ResponseCallbackAdapter<Any>(getParameterUpperBound(0, responseType))
+      ResponseCallbackAdapter<Any>(getParameterUpperBound(0, responseType), executor)
     } else {
-      BodyCallbackAdapter<Any>(responseType)
+      BodyCallbackAdapter<Any>(responseType, executor)
     }
   }
 
   private class BodyCallbackAdapter<T>(
-      private val responseType: Type
+      private val responseType: Type,
+      private val executor: Executor
   ) : CallbackAdapter<T, Continuation<T>> {
 
     override fun responseType() = responseType
 
     override fun adapt(call: Call<T>, continuation: Continuation<T>): Any? {
       val snapshot = Exception() // used to keep the stack trace
-      call.enqueue(object : Callback<T> {
+      ExecutorCallbackCall(executor, call).enqueue(object : Callback<T> {
         override fun onResponse(call: Call<T>, response: Response<T>) {
           if (response.isSuccessful) {
             continuation.resume(response.body()!!)
@@ -77,14 +78,15 @@ class CoroutineCallbackAdapterFactory private constructor() : CallbackAdapter.Fa
   }
 
   private class ResponseCallbackAdapter<T>(
-      private val responseType: Type
+      private val responseType: Type,
+      private val executor: Executor
   ) : CallbackAdapter<T, Continuation<Response<T>>> {
 
     override fun responseType() = responseType
 
     override fun adapt(call: Call<T>, continuation: Continuation<Response<T>>): Any? {
       val snapshot = Exception() // used to keep the stack trace
-      call.enqueue(object : Callback<T> {
+      ExecutorCallbackCall(executor, call).enqueue(object : Callback<T> {
         override fun onResponse(call: Call<T>, response: Response<T>) {
           continuation.resume(response)
         }
