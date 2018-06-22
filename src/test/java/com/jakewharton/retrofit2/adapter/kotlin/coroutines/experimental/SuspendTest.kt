@@ -44,7 +44,7 @@ class SuspendTest {
     val retrofit = Retrofit.Builder()
         .baseUrl(server.url("/"))
         .addConverterFactory(StringConverterFactory())
-        .addCallbackAdapterFactory(CoroutineCallbackAdapterFactory())
+        .addCallbackAdapterFactory(CoroutineCallbackAdapterFactory(MockExecutor()))
         .build()
     service = retrofit.create(Service::class.java)
   }

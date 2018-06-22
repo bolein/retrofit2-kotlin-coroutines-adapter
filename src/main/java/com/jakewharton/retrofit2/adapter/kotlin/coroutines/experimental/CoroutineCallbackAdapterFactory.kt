@@ -12,13 +12,6 @@ import java.util.concurrent.Executor
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.intrinsics.COROUTINE_SUSPENDED
 
-
-internal fun Throwable.wrap(e: Throwable): Throwable {
-  val exWrapper = RuntimeException(e)
-  exWrapper.stackTrace = this.stackTrace
-  return exWrapper
-}
-
 class CoroutineCallbackAdapterFactory(
         private val executor: Executor
 ) : CallbackAdapter.Factory() {
@@ -98,4 +91,13 @@ class CoroutineCallbackAdapterFactory(
       return COROUTINE_SUSPENDED
     }
   }
+}
+
+/**
+ * Appends stack trace to make the response exception lead to caller's site
+ */
+internal fun Throwable.wrap(e: Throwable): Throwable {
+  e.stackTrace += this.stackTrace.drop(2)
+  e.printStackTrace()
+  return e
 }
