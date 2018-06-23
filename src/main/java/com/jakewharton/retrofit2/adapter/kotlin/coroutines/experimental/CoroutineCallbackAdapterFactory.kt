@@ -98,6 +98,5 @@ class CoroutineCallbackAdapterFactory(
  */
 internal fun Throwable.wrap(e: Throwable): Throwable {
   e.stackTrace += this.stackTrace.drop(2)
-  e.printStackTrace()
   return e
 }
